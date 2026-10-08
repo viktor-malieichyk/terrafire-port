@@ -87,6 +87,7 @@ extern GameState g_state;
 extern Globals g;
 
 void game_init_globals(void);
+void game_default_keys(void);
 /* Read SETTINGS.CFG (0x1ab bytes, loaded to 0x5e27c by 0x12f48) from `dir`
  * or the current directory. Returns false (keeping defaults) if missing. */
 bool game_load_settings(const char *dir);

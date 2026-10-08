@@ -48,7 +48,7 @@ Play:
     build/terrafire --play ..                        # straight into a new game, difficulty 1, mission 1
     build/terrafire --play 0 5 ..                    # difficulty 0-3, start at mission 1-27
 
-Controls come from SETTINGS.CFG (default: Left/Right turn, Up thrust, Ctrl
+Controls come from SETTINGS.CFG (default: Left/Right turn, Up thrust, Space
 fire), P pauses, Esc opens the in-game menu. Options are saved to
 SETTINGS.CFG. Sound effects play if enabled in SETTINGS.CFG. Gamepads work as the original's
 joystick: in a mission the stick (or D-pad) turns and thrusts and A/X fires;

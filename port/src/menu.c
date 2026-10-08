@@ -306,11 +306,15 @@ static void volume_step(int item)
 static void sound_menu(int item) { (void)item; volume_text(); run_sub(&s_sound); }   /* 0x16a54 */
 
 static void key_capture(int item);
+static void keys_reset(int item);
+/* Port addition: a DEFAULT KEYS button; the original has only the four
+ * keys and DONE, at y 0x4000. */
 static MenuItem s_keys_items[] = {
     ITEM_DYN(key_capture), ITEM_DYN(key_capture), ITEM_DYN(key_capture), ITEM_DYN(key_capture),
+    { "DEFAULT KEYS", -1, 5, { NULL, keys_reset, NULL }, false },
     ITEM(27, NULL, NULL, NULL, true),
 };
-static Menu s_keys = { 28, NULL, NULL, 7, 0xa000, 0x4000, 0, 5, s_keys_items, false };
+static Menu s_keys = { 28, NULL, NULL, 7, 0xa000, 0x3600, 0, 6, s_keys_items, false };
 
 static void key_text(int k)
 {
@@ -349,6 +353,13 @@ static void key_capture(int k)
     obj_unfreeze(1);
     obj_unfreeze(2);
     key_text(k);
+}
+
+static void keys_reset(int item)
+{
+    (void)item;
+    game_default_keys();
+    for (int k = 0; k < 4; k++) key_text(k);
 }
 
 static void keys_menu(int item)   /* 0x1619c */
@@ -390,6 +401,50 @@ static void options_menu(int item) { (void)item; run_sub(&s_options); game_save_
 
 /* ------------------------------------------------------------ info */
 
+/* Port addition: the instructions list the default keys as fixed text
+ * (lines 104/105: "key desc key desc" in tab columns). Draw them with the
+ * current bindings instead, widening a column when a key name needs it so
+ * both rows stay aligned. */
+#define TXT_KEYS_HEAD 102
+#define TXT_KEYS_ROW  104
+
+/* Split a tab-column line into up to 4 words with their tab-stop x. */
+static void keys_columns(const char *line, char words[4][32], int32_t x[4])
+{
+    int32_t pos = 0;
+    int n = 0;
+    for (const char *p = line; *p && n < 4;) {
+        if (*p == '\t') { pos = ((pos >> 12) + 1) * 0x1000; p++; continue; }
+        size_t len = strcspn(p, "\t");
+        snprintf(words[n], sizeof words[n], "%.*s", (int)len, p);
+        x[n] = pos;
+        pos += text_width(0x429, 0, 0x300, words[n]);
+        n++;
+        p += len;
+    }
+    for (; n < 4; n++) { words[n][0] = 0; x[n] = pos; }
+}
+
+static void keys_row_draw(int row, int32_t y)
+{
+    char cols[2][4][32];
+    int32_t x[2][4], w[2][4];
+    for (int r = 0; r < 2; r++) {
+        keys_columns(g_text[TXT_KEYS_ROW + r], cols[r], x[r]);
+        snprintf(cols[r][0], sizeof cols[r][0], "%s", g_key_names[g.keys[r] & 0x7f]);      /* left / right */
+        snprintf(cols[r][2], sizeof cols[r][2], "%s", g_key_names[g.keys[2 + r] & 0x7f]);  /* thrust / fire */
+        for (int c = 0; c < 4; c++) w[r][c] = text_width(0x429, 0, 0x300, cols[r][c]);
+    }
+    int32_t at = 0;
+    for (int c = 0; c < 4; c++) {
+        int32_t cx = x[0][c] > x[1][c] ? x[0][c] : x[1][c];
+        if (cx < at) cx = at;
+        text_draw(true, ALIGN_LEFT, 0x1500 + cx, y, 0x429, 0, 0x300, "%s", cols[row][c]);
+        int32_t wide = w[0][c] > w[1][c] ? w[0][c] : w[1][c];
+        at = cx + wide + 0x800;
+    }
+}
+
 /* 0x17fc0: one page of 18 message lines from `first`. A leading '-' or
  * '_' is a heading with a rule under it (left / centred), '^' a centred
  * heading, '@n' puts animated icon n beside the line. */
@@ -406,7 +461,11 @@ static void page_draw(int first, int page, int pages)
     for (int n = 0; n < 18; n++, id++) {
         const char *line = id < TEXT_COUNT ? g_text[id] : "";
         int32_t next = y + 0xb00;
-        if (line[0] == '-') {
+        if (id == TXT_KEYS_HEAD) line = "-KEYS";
+        if (id == TXT_KEYS_ROW || id == TXT_KEYS_ROW + 1) {
+            keys_row_draw(id - TXT_KEYS_ROW, y);
+            next = y + 0x900;
+        } else if (line[0] == '-') {
             text_draw(true, ALIGN_LEFT, 0x1500, y, 0x429, 0, 0x300, "%s", line + 1);
             int32_t w = text_width(0x429, 0, 0x300, line + 1);
             render_line(0x88, 0x1500, y + 0x800, w + 0x1300, y + 0x800);

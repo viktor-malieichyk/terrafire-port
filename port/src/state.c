@@ -6,6 +6,16 @@
 GameState g_state = {0};
 Globals g = {0};
 
+/* Defaults until settings.cfg is read: left/right turn, up thrust, space fire.
+ * (The original fires with Ctrl.) */
+void game_default_keys(void)
+{
+    g.keys[0] = 0x4b;
+    g.keys[1] = 0x4d;
+    g.keys[2] = 0x48;
+    g.keys[3] = 0x39;
+}
+
 void game_init_globals(void)
 {
     memset(&g, 0, sizeof g);
@@ -13,11 +23,7 @@ void game_init_globals(void)
     g.sound = true;
     g.full_rate = true;
     g.volume = 100;
-    /* Defaults until settings.cfg is read: left/right turn, up thrust, ctrl fire. */
-    g.keys[0] = 0x4b;
-    g.keys[1] = 0x4d;
-    g.keys[2] = 0x48;
-    g.keys[3] = 0x1d;
+    game_default_keys();
     g.detail = 2;
 }
 
