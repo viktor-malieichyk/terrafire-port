@@ -586,6 +586,8 @@ int main(int argc, char **argv)
             render_init();
             sound_init(g.sound);
             sound_set_volume(g.volume);
+            platform_set_scaling(g.scaling);
+            if (g.fullscreen) platform_set_fullscreen(true);
             if (getenv("TF_CHEATS")) g.cheats = true;   /* testing: F5-F8 as after F4 */
             if (mode == RUN) {
                 splash_screen();                 /* 0x1006c */

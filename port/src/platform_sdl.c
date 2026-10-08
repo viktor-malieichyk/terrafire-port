@@ -15,6 +15,9 @@ static SDL_Renderer *s_renderer;
 static SDL_Texture *s_texture;
 static uint32_t s_palette[256];          /* XRGB8888 */
 static uint32_t s_pixels[SCREEN_W * SCREEN_H];
+static int s_scaling = SCALE_SHARP;
+static SDL_Texture *s_prescaled;        /* SHARP: the screen at whole-number size */
+static int s_pre_w, s_pre_h;
 
 static SDL_AudioDeviceID s_audio;
 static SDL_AudioStream *s_channels[SOUND_CHANNELS];
@@ -92,14 +95,13 @@ bool platform_init(const char *title, int scale)
     }
     /* 320x200 was shown on 4:3 monitors, so present it at 320x240. */
     if (!SDL_CreateWindowAndRenderer(title, SCREEN_W * scale, 240 * scale,
-                                     SDL_WINDOW_RESIZABLE, &s_window, &s_renderer)) {
+                                     SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY, &s_window, &s_renderer)) {
         SDL_Log("window creation failed: %s", SDL_GetError());
         return false;
     }
     /* No vsync: game logic advances once per present, so presents must be
      * paced by the original's 70 Hz timer (timing.c), not the monitor. */
     SDL_SetRenderVSync(s_renderer, 0);
-    SDL_SetRenderLogicalPresentation(s_renderer, SCREEN_W, 240, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     s_texture = SDL_CreateTexture(s_renderer, SDL_PIXELFORMAT_XRGB8888,
                                   SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
     if (!s_texture) {
@@ -127,6 +129,7 @@ void platform_shutdown(void)
     for (int i = 0; i < SOUND_CHANNELS; i++)
         if (s_channels[i]) SDL_DestroyAudioStream(s_channels[i]);
     if (s_audio) SDL_CloseAudioDevice(s_audio);
+    SDL_DestroyTexture(s_prescaled);
     SDL_DestroyTexture(s_texture);
     SDL_DestroyRenderer(s_renderer);
     SDL_DestroyWindow(s_window);
@@ -139,15 +142,91 @@ void platform_set_palette(const uint8_t rgb[768])
         s_palette[i] = 0xff000000u | (uint32_t)rgb[i * 3] << 16 | (uint32_t)rgb[i * 3 + 1] << 8 | rgb[i * 3 + 2];
 }
 
+void platform_set_fullscreen(bool on)
+{
+    if (s_window) SDL_SetWindowFullscreen(s_window, on);
+}
+
+void platform_set_scaling(int mode) { s_scaling = mode; }
+
+/* Where the 320x200 screen goes in the window, in real (not HiDPI-scaled)
+ * pixels. The original was shown 4:3 on a VGA monitor, i.e. with pixels
+ * 1.2 times as tall as wide.
+ *   SHARP    the largest 4:3 picture, letterboxed (drawn by present_sharp)
+ *   INTEGER  pixels kx wide and ky tall, both whole numbers, so every row
+ *            and column is the same size: the largest such picture whose
+ *            pixels are between square and 4:3 (1 <= ky/kx <= 1.2),
+ *            preferring the closer to 4:3 on a tie
+ *   FILL     the whole window, whatever its shape */
+static void present_rect(SDL_FRect *dst)
+{
+    int w = SCREEN_W, h = 240;
+    SDL_GetCurrentRenderOutputSize(s_renderer, &w, &h);
+    float dw = 0, dh = 0;
+    if (s_scaling == SCALE_FILL) {
+        dw = (float)w;
+        dh = (float)h;
+    } else if (s_scaling == SCALE_INTEGER) {
+        long best = 0;
+        for (int ky = h / SCREEN_H; ky >= 1; ky--)
+            for (int kx = ky; kx >= 1 && 6 * kx >= 5 * ky; kx--) {
+                if (SCREEN_W * kx > w) continue;
+                long area = (long)kx * ky;
+                if (area > best) {
+                    best = area;
+                    dw = (float)(SCREEN_W * kx);
+                    dh = (float)(SCREEN_H * ky);
+                }
+                break;   /* smaller kx: smaller area for this ky */
+            }
+    }
+    if (dw == 0) {
+        float s = (float)w / SCREEN_W < (float)h / 240 ? (float)w / SCREEN_W : (float)h / 240;
+        dw = (float)(int)(SCREEN_W * s);
+        dh = (float)(int)(240 * s);
+    }
+    dst->w = dw;
+    dst->h = dh;
+    dst->x = (float)(int)((w - dw) / 2);
+    dst->y = (float)(int)((h - dh) / 2);
+}
+
+/* Sharp bilinear: blow the screen up by whole numbers with no smoothing
+ * (every pixel a uniform block), then smooth-scale that to `dst`. Only the
+ * seams between blocks get blended, so pixels stay crisp and evenly sized
+ * while the picture keeps the exact 4:3 shape. Returns the blown-up
+ * texture to draw at `dst`, or NULL to draw the screen as is. */
+static SDL_Texture *prescale(const SDL_FRect *dst)
+{
+    int kx = (int)dst->w / SCREEN_W, ky = (int)dst->h / SCREEN_H;
+    if (kx < 1) kx = 1;
+    if (ky < 1) ky = 1;
+    if (!s_prescaled || s_pre_w != SCREEN_W * kx || s_pre_h != SCREEN_H * ky) {
+        SDL_DestroyTexture(s_prescaled);
+        s_pre_w = SCREEN_W * kx;
+        s_pre_h = SCREEN_H * ky;
+        s_prescaled = SDL_CreateTexture(s_renderer, SDL_PIXELFORMAT_XRGB8888,
+                                        SDL_TEXTUREACCESS_TARGET, s_pre_w, s_pre_h);
+        if (!s_prescaled) return NULL;
+        SDL_SetTextureScaleMode(s_prescaled, SDL_SCALEMODE_LINEAR);
+    }
+    SDL_SetRenderTarget(s_renderer, s_prescaled);
+    SDL_RenderTexture(s_renderer, s_texture, NULL, NULL);
+    SDL_SetRenderTarget(s_renderer, NULL);
+    return s_prescaled;
+}
+
 void platform_present(void)
 {
     for (int i = 0; i < SCREEN_W * SCREEN_H; i++)
         s_pixels[i] = s_palette[g_screen[i]];
     SDL_UpdateTexture(s_texture, NULL, s_pixels, SCREEN_W * (int)sizeof(uint32_t));
+    SDL_FRect dst;
+    present_rect(&dst);
+    SDL_Texture *tex = s_scaling == SCALE_SHARP ? prescale(&dst) : NULL;
     SDL_SetRenderDrawColor(s_renderer, 0, 0, 0, 255);
     SDL_RenderClear(s_renderer);
-    const SDL_FRect dst = { 0, 0, SCREEN_W, 240 };
-    SDL_RenderTexture(s_renderer, s_texture, NULL, &dst);
+    SDL_RenderTexture(s_renderer, tex ? tex : s_texture, NULL, &dst);
     SDL_RenderPresent(s_renderer);
 }
 

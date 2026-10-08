@@ -5,6 +5,7 @@
 /*.ico
 /settings.cfg
 /SETTINGS.CFG
+/PORT.CFG
 /GAME000?.SAV
 # Build output and generated analysis files
 /port/build*/

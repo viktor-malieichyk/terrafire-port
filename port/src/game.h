@@ -61,6 +61,8 @@ typedef struct {
     int32_t detail;          /* 0x5e334  setting: 0-2, parallax layers shown at >= 1 / 2 */
     bool debris;             /* 0x5e333  setting: full explosion debris (changes RNG use) */
     bool joystick;           /* 0x5e338  setting */
+    bool fullscreen;         /* port setting (PORT.CFG) */
+    int32_t scaling;         /* port setting (PORT.CFG): SCALE_SHARP/INTEGER/FILL */
     bool sound;              /* 0x5e27d  setting: sound effects on */
     int32_t volume;          /* 0x5e286  setting: 0-100 in steps of 20 */
     char hi_names[10][15];   /* 0x5e369  high score table (in SETTINGS.CFG) */

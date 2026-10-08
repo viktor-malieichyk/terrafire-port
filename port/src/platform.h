@@ -23,6 +23,11 @@ void platform_shutdown(void);
 void platform_set_palette(const uint8_t rgb[768]);
 /* Convert g_screen through the palette and show it. */
 void platform_present(void);
+/* Port display options: desktop fullscreen, and how the picture is scaled
+ * to the window (see present_rect). */
+enum { SCALE_SHARP, SCALE_INTEGER, SCALE_FILL, SCALE_MODES };
+void platform_set_fullscreen(bool on);
+void platform_set_scaling(int mode);
 
 void platform_set_title(const char *title);
 /* Write the current g_screen (through the palette) to a BMP file. */

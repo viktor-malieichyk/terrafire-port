@@ -54,6 +54,14 @@ SETTINGS.CFG. Sound effects play if enabled in SETTINGS.CFG. Gamepads work as th
 joystick: in a mission the stick (or D-pad) turns and thrusts and A/X fires;
 in menus the stick moves and A/X selects; B or Start is Esc. Plugging one in
 turns Options > Control > JOYSTICK on.
+Options > Graphics also has two port-only settings, kept in PORT.CFG so
+SETTINGS.CFG stays in the original's format: FULLSCREEN (desktop fullscreen)
+and SCALING. SHARP (default) is the largest 4:3 picture, as on the original
+VGA monitor's non-square pixels, drawn with sharp bilinear: scaled up by whole
+numbers with no smoothing, then smoothly to the final size, so pixels stay
+crisp and even. INTEGER is the largest picture with whole-number pixel sizes
+(between square and 4:3, so the shape is only close to 4:3). FILL stretches to
+the whole window. Sizes are in real pixels on HiDPI/Retina screens.
 Saved games are GAME0001.SAV-GAME0005.SAV next to SETTINGS.CFG, in the original's format (the
 DOS game loads them too). Testing hooks: TF_KEYS="frame:code,frame:-code,..." injects key
 make/break events, TF_SHOT_PRESENT=n:file.bmp saves the n-th shown frame,

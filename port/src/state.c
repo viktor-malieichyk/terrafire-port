@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "platform.h"
+
 GameState g_state = {0};
 Globals g = {0};
 
@@ -23,6 +25,7 @@ void game_init_globals(void)
     g.sound = true;
     g.full_rate = true;
     g.volume = 100;
+    g.scaling = SCALE_SHARP;
     game_default_keys();
     g.detail = 2;
 }
@@ -127,8 +130,37 @@ static void wr32(uint8_t *p, int off, int32_t v)
     p[off + 3] = (uint8_t)(v >> 24);
 }
 
+/* Port-only options live in their own file so SETTINGS.CFG keeps the
+ * original's format: "name value" lines. */
+static void port_cfg_path(char *out, size_t n) { snprintf(out, n, "%s/PORT.CFG", s_dir); }
+
+static void port_cfg_load(void)
+{
+    char path[1100], name[32];
+    int v;
+    port_cfg_path(path, sizeof path);
+    FILE *f = fopen(path, "r");
+    if (!f) return;
+    while (fscanf(f, "%31s %d", name, &v) == 2) {
+        if (strcmp(name, "fullscreen") == 0) g.fullscreen = v != 0;
+        else if (strcmp(name, "scaling") == 0 && v >= 0 && v < SCALE_MODES) g.scaling = v;
+    }
+    fclose(f);
+}
+
+static bool port_cfg_save(void)
+{
+    char path[1100];
+    port_cfg_path(path, sizeof path);
+    FILE *f = fopen(path, "w");
+    if (!f) return false;
+    fprintf(f, "fullscreen %d\nscaling %d\n", g.fullscreen, (int)g.scaling);
+    return fclose(f) == 0;
+}
+
 bool game_save_settings(void)
 {
+    port_cfg_save();
     if (!s_cfg_loaded) return false;
     uint8_t *b = s_cfg;
     b[0x01] = g.sound;
@@ -154,6 +186,7 @@ bool game_load_settings(const char *dir)
     uint8_t *b = s_cfg;
     FILE *f = NULL;
     snprintf(s_dir, sizeof s_dir, "%s", dir ? dir : ".");
+    port_cfg_load();
     for (int i = 0; i < 2 && !f; i++) {
         snprintf(s_cfg_path, sizeof s_cfg_path, "%s%s%s", dir ? dir : "", dir ? "/" : "", names[i]);
         f = fopen(s_cfg_path, "rb");

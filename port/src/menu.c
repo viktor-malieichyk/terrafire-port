@@ -253,17 +253,23 @@ enum { TXT_LEFT = 3, TXT_FRAME_RATE = 72, TXT_DETAIL = 74, TXT_LAYERS = 76, TXT_
 static void set_text(MenuItem *it, const char *s) { snprintf(it->text, sizeof it->text, "%s", s); }
 
 static void graphics_toggle(int item);
+/* Port addition: FULLSCREEN and SCALING rows; the original has three
+ * toggles and DONE, at y 0x4800. */
 static MenuItem s_graphics_items[] = {
     ITEM_DYN(graphics_toggle), ITEM_DYN(graphics_toggle), ITEM_DYN(graphics_toggle),
+    ITEM_DYN(graphics_toggle), ITEM_DYN(graphics_toggle),
     ITEM(27, NULL, NULL, NULL, true),
 };
-static Menu s_graphics = { 24, NULL, NULL, 8, 0xa000, 0x4800, 0, 4, s_graphics_items, false };
+static Menu s_graphics = { 24, NULL, NULL, 8, 0xa000, 0x3600, 0, 6, s_graphics_items, false };
 
 static void graphics_texts(void)
 {
     set_text(&s_graphics_items[0], g_text[TXT_FRAME_RATE + g.full_rate]);
     set_text(&s_graphics_items[1], g_text[TXT_DETAIL + g.debris]);
     set_text(&s_graphics_items[2], g_text[TXT_LAYERS + g.detail]);
+    set_text(&s_graphics_items[3], g.fullscreen ? "FULLSCREEN : ON" : "FULLSCREEN : OFF");
+    static const char *const scaling[SCALE_MODES] = { "SCALING : SHARP", "SCALING : INTEGER", "SCALING : FILL" };
+    set_text(&s_graphics_items[4], scaling[g.scaling]);
 }
 
 /* 0x1693c */
@@ -276,6 +282,12 @@ static void graphics_toggle(int item)
         g.debris = !g.debris;
     } else if (item == 2) {
         g.detail = (g.detail + 1) % 3;
+    } else if (item == 3) {
+        g.fullscreen = !g.fullscreen;
+        platform_set_fullscreen(g.fullscreen);
+    } else if (item == 4) {
+        g.scaling = (g.scaling + 1) % SCALE_MODES;
+        platform_set_scaling(g.scaling);
     }
     graphics_texts();
 }
