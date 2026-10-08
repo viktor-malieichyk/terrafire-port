@@ -1,0 +1,48 @@
+# Builds the port on Windows (MSVC), Linux (MinGW-w64 cross build for
+# Windows) and macOS. The game data (DATA.PAK) is not in the repository,
+# so CI only checks that everything compiles and links.
+name: build
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  windows-msvc:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (SDL3 is fetched and built)
+        run: cmake -S port -B port/build -DTF_VENDOR_SDL=ON
+      - name: Build
+        run: cmake --build port/build --config Release --parallel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terrafire-windows-msvc
+          path: |
+            port/build/Release/terrafire.exe
+            port/build/Release/SDL3.dll
+
+  windows-mingw-cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y mingw-w64
+      - name: Configure
+        run: >
+          cmake -S port -B port/build-win -DTF_VENDOR_SDL=ON -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake
+      - name: Build
+        run: cmake --build port/build-win --parallel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terrafire-windows-mingw
+          path: |
+            port/build-win/terrafire.exe
+            port/build-win/SDL3.dll
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install sdl3
+      - run: cmake -S port -B port/build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build port/build --parallel

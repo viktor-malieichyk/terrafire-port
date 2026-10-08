@@ -1,0 +1,21 @@
+# The original game is not redistributable: keep its files out of the repository.
+/data.pak
+/DATA.PAK
+/*.exe
+/*.ico
+/settings.cfg
+/SETTINGS.CFG
+/GAME000?.SAV
+# Build output and generated analysis files
+/port/build*/
+/port/dist/
+/re/build/
+/re/out/
+/re/assets/
+/re/.venv/
+/re/ghidra_proj/
+__pycache__/
+.DS_Store
+# Editor / tooling caches
+.cache/
+compile_commands.json
