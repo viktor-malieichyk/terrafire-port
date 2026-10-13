@@ -42,6 +42,9 @@ jobs:
         run: |
           dir="TerraFire-${{ github.ref_name }}-macos"
           mkdir "$dir"
+          # Ad-hoc signature: seals the bundle so macOS treats it as an app from
+          # an unidentified developer rather than as damaged.
+          codesign --force --deep --sign - port/build/TerraFire.app
           cp -R port/build/TerraFire.app LICENSE "$dir/"
           cp port/res/release-readme.txt "$dir/README.txt"
           ditto -c -k --keepParent "$dir" "$dir.zip"

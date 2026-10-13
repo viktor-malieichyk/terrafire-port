@@ -6,9 +6,11 @@ game's data. Copy the program into the folder of your TerraFire installation
 (the one containing DATA.PAK) and run it there.
 
   Windows: copy terrafire.exe and SDL3.dll, run terrafire.exe.
-  macOS:   copy TerraFire.app. It is not signed, so the first time
-           right-click it and choose Open (or run
-           xattr -dr com.apple.quarantine TerraFire.app).
+  macOS:   copy TerraFire.app. It is not notarized by Apple, so the
+           first time macOS refuses to open it: go to System Settings >
+           Privacy & Security and click Open Anyway (on macOS 14 and
+           older, right-click the app and choose Open instead). Or, in
+           Terminal: xattr -dr com.apple.quarantine TerraFire.app
 
 Settings (SETTINGS.CFG) and saved games (GAME0001.SAV ...) are kept in that
 folder and are compatible with the DOS version. Display options are in

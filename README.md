@@ -15,8 +15,9 @@ Saves and settings stay compatible with the DOS game.
 You need the original game: this repository and its releases contain only
 the port, not TerraFire's data. Download the build for your system from
 [Releases](../../releases), put it in your TerraFire folder (the one
-containing DATA.PAK) and run it. See the README.txt inside for controls; on
-macOS the app is unsigned, so open it the first time with right-click > Open.
+containing DATA.PAK) and run it. See the README.txt inside for controls. On
+macOS the app is not notarized: the first time, allow it in System Settings >
+Privacy & Security > Open Anyway.
 
 ## Repository
 

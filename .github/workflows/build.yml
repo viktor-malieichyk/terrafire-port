@@ -48,6 +48,7 @@ jobs:
           cmake -S port -B port/build -DCMAKE_BUILD_TYPE=Release -DTF_VENDOR_SDL=ON
           -DTF_MACOS_BUNDLE=ON "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
       - run: cmake --build port/build --parallel
+      - run: codesign --force --deep --sign - port/build/TerraFire.app
       - run: ditto -c -k --keepParent port/build/TerraFire.app TerraFire-macos.zip
       - uses: actions/upload-artifact@v7
         with:
