@@ -19,7 +19,6 @@ static void (*s_step_hook)(void);
 
 void objects_set_step_hook(void (*fn)(void)) { s_step_hook = fn; }
 
-int objects_current(void) { return s_cur; }
 int objects_first(void) { return s_head; }
 void objects_set_callback_override(void (*fn)(int slot)) { s_cb_override = fn; }
 
@@ -360,14 +359,6 @@ void obj_anim_step(int slot)
 void obj_set_anim(int slot, int anim, int frame)
 {
     g_objects[slot].anim_frame = (int16_t)frame;
-    g_objects[slot].anim = (int16_t)anim;
-    obj_anim_step(slot);
-}
-
-void obj_play_anim_then(int slot, int anim, int k, int cb)
-{
-    obj_set_callback(slot, k, cb, g_anims[anim].count);
-    g_objects[slot].anim_frame = 0;
     g_objects[slot].anim = (int16_t)anim;
     obj_anim_step(slot);
 }

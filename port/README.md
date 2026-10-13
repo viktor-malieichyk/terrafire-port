@@ -9,51 +9,56 @@ macOS (Homebrew):
 
     brew install cmake ninja sdl3
     cmake -S . -B build -G Ninja
-    cmake --build build
+    cmake --build build                    # -> build/terrafire
+
+A self-contained universal TerraFire.app, as in the releases (SDL3 is
+built from source and linked in):
+
+    cmake -S . -B build-app -G Ninja -DCMAKE_BUILD_TYPE=Release -DTF_VENDOR_SDL=ON \
+          -DTF_MACOS_BUNDLE=ON "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+    cmake --build build-app                # -> build-app/TerraFire.app
 
 Windows (Visual Studio 2022 or newer, from a developer prompt):
 
     cmake -S . -B build
-    cmake --build build --config Release
+    cmake --build build --config Release   # -> build/Release/terrafire.exe + SDL3.dll
 
-If SDL3 isn't installed, CMake downloads and builds it automatically
-(`-DTF_VENDOR_SDL=ON` forces that).
+Or cross-compile for Windows from macOS / Linux with MinGW-w64
+(`brew install mingw-w64`):
+
+    tools/package-windows.sh               # -> dist/terrafire-windows.zip
+
+If SDL3 isn't installed, CMake downloads and builds it (`-DTF_VENDOR_SDL=ON`
+forces that). The Windows build is a GUI program with no console; configure
+with `-DTF_WINDOWS_CONSOLE=ON` to see its log output.
+`.github/workflows/build.yml` builds all of these on GitHub Actions, and
+pushing a `v*` tag runs `release.yml`, which publishes the Windows and macOS
+packages as a GitHub release.
 
 ## Run
 
     build/terrafire [directory containing DATA.PAK]
 
-`--viewer` opens the asset viewer: Left/Right change entry, Up/Down change
-frame, Shift+arrows scroll, Enter toggles tile sets / sprite banks, P cycles
-palettes, Space plays the next sound, Esc quits.
+Without a directory it looks in the current folder, next to the executable,
+and (TerraFire.app) in the folder containing the app. Settings and saves are
+kept beside DATA.PAK.
 
-Windows:
+    build/terrafire ..                     # the game: splash, title, main menu
+    build/terrafire --play ..              # straight into a new game, difficulty 1, mission 1
+    build/terrafire --play 0 5 ..          # difficulty 0-3, start at mission 1-27
+    build/terrafire --viewer ..            # asset viewer
 
-    cmake -S . -B build                    # Visual Studio 2022 (SDL3 is fetched and built)
-    cmake --build build --config Release   # -> build/Release/terrafire.exe + SDL3.dll
-
-Or cross-compile from macOS / Linux with MinGW-w64 (`brew install mingw-w64`):
-
-    tools/package-windows.sh               # -> dist/terrafire-windows.zip
-
-Put terrafire.exe and SDL3.dll in the game folder (with DATA.PAK) and run it;
-settings and saves stay in that folder. The Windows build is a GUI program
-(no console); configure with -DTF_WINDOWS_CONSOLE=ON to see its log output.
-`.github/workflows/build.yml` builds Windows (MSVC and MinGW) and macOS on
-GitHub Actions.
-
-Play:
-
-    build/terrafire ..                               # the game: splash, title, main menu
-    build/terrafire --play ..                        # straight into a new game, difficulty 1, mission 1
-    build/terrafire --play 0 5 ..                    # difficulty 0-3, start at mission 1-27
+In the viewer, Left/Right change entry, Up/Down change frame, Shift+arrows
+scroll, Enter toggles tile sets / sprite banks, P cycles palettes, Space
+plays the next sound, Esc quits.
 
 Controls come from SETTINGS.CFG (default: Left/Right turn, Up thrust, Space
-fire), P pauses, Esc opens the in-game menu. Options are saved to
-SETTINGS.CFG. Sound effects play if enabled in SETTINGS.CFG. Gamepads work as the original's
+fire; Options > Control > Set Keys changes them), P pauses, Esc opens the
+in-game menu, F1 shows the instructions. Gamepads work as the original's
 joystick: in a mission the stick (or D-pad) turns and thrusts and A/X fires;
 in menus the stick moves and A/X selects; B or Start is Esc. Plugging one in
 turns Options > Control > JOYSTICK on.
+
 Options > Graphics also has two port-only settings, kept in PORT.CFG so
 SETTINGS.CFG stays in the original's format: FULLSCREEN (desktop fullscreen)
 and SCALING. SHARP (default) is the largest 4:3 picture, as on the original
@@ -62,15 +67,20 @@ numbers with no smoothing, then smoothly to the final size, so pixels stay
 crisp and even. INTEGER is the largest picture with whole-number pixel sizes
 (between square and 4:3, so the shape is only close to 4:3). FILL stretches to
 the whole window. Sizes are in real pixels on HiDPI/Retina screens.
-Saved games are GAME0001.SAV-GAME0005.SAV next to SETTINGS.CFG, in the original's format (the
-DOS game loads them too). Testing hooks: TF_KEYS="frame:code,frame:-code,..." injects key
-make/break events, TF_SHOT_PRESENT=n:file.bmp saves the n-th shown frame,
+
+Saved games are GAME0001.SAV-GAME0005.SAV next to SETTINGS.CFG, in the
+original's format (the DOS game loads them too).
+
+## Testing
+
+Hooks (environment variables): TF_KEYS="frame:code,frame:-code,..." injects
+key make/break events, TF_SHOT_PRESENT=n:file.bmp saves the n-th shown frame,
 TF_SAVE_TICK=n acts as if a save point were collected at game tick n,
 TF_KILL_TICK=n loses the last life at tick n, TF_CHEATS=1 enables F5-F8,
 TF_PAD="from-to:x,y,fire,back;..." simulates a gamepad (frames count calls
 to the frame presenter, as for TF_KEYS and TF_SHOT_PRESENT).
 
-Checks:
+Self-checks:
 
     build/terrafire --selftest ..                    # decode every pak entry
     build/terrafire --demo-check ..                  # replay demo input timelines
@@ -94,9 +104,10 @@ per-step trace as `--trace`, so the two can be compared:
     build/terrafire --trace 3 600 port.csv ..
     python3 ../re/tools/trace_compare.py orig.csv port.csv
 
-Reference traces for all four demos, and demo 0's input replayed on every
-bonus mission, are kept in `re/traces/`; check the port against all of them
-with (from the repository root):
+Reference traces for all four demos, plus demo input replayed on every
+mission that has no demo of its own (demo 0 on the bonus missions, demo 3
+on the rest; 31 in all), are kept in `re/traces/`; check the port against
+all of them with (from the repository root):
 
     re/tools/regress.sh
 
@@ -108,8 +119,9 @@ Only DOS-facing routines are replaced in the emulated run (file I/O,
 allocation, clock, vsync, sound, text output); the game logic runs as
 compiled. The comparison reports the first frame and field that differ.
 
-`--attract` runs the ported demo/session/mission start-up code and logs each
-original routine it reaches that isn't ported yet (`unported.c`).
+A few paths of the original that the game never reaches are not ported; if
+one is ever hit, it is logged once (`unported.c`) and counted in the
+`--attract` / `--play` summary.
 
 ## Layout
 

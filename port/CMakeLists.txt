@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
-project(terrafire C)
+set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0 CACHE STRING "Minimum macOS version")
+project(terrafire VERSION 1.0.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -18,8 +19,15 @@ if(NOT SDL3_FOUND)
         GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
         GIT_TAG release-3.4.18
         GIT_SHALLOW TRUE)
-    set(SDL_SHARED ON CACHE BOOL "" FORCE)
-    set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+    # macOS links it in, so the app needs nothing beside it; Windows ships
+    # SDL3.dll next to the exe.
+    if(APPLE)
+        set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+        set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    else()
+        set(SDL_SHARED ON CACHE BOOL "" FORCE)
+        set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+    endif()
     set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(SDL3)
 endif()
@@ -64,7 +72,28 @@ add_executable(terrafire
     src/screens.c
     src/joystick.c
 )
-target_link_libraries(terrafire PRIVATE SDL3::SDL3)
+if(TARGET SDL3::SDL3)
+    target_link_libraries(terrafire PRIVATE SDL3::SDL3)
+else()
+    target_link_libraries(terrafire PRIVATE SDL3::SDL3-static)
+endif()
+
+# macOS: -DTF_MACOS_BUNDLE=ON builds TerraFire.app (for releases), which
+# finds DATA.PAK in the folder it is in.
+option(TF_MACOS_BUNDLE "macOS: build TerraFire.app" OFF)
+if(APPLE AND TF_MACOS_BUNDLE)
+    target_sources(terrafire PRIVATE res/terrafire.icns)
+    set_source_files_properties(res/terrafire.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_target_properties(terrafire PROPERTIES
+        OUTPUT_NAME TerraFire
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/res/Info.plist.in
+        MACOSX_BUNDLE_BUNDLE_NAME TerraFire
+        MACOSX_BUNDLE_GUI_IDENTIFIER io.github.viktor-malieichyk.terrafire
+        MACOSX_BUNDLE_ICON_FILE terrafire.icns
+        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+endif()
 
 # Windows: a GUI program (no console window) with the game's icon. Logs then
 # go nowhere; configure with -DTF_WINDOWS_CONSOLE=ON to keep the console.

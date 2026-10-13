@@ -1,7 +1,5 @@
 #include "unported.h"
 
-#include "timing.h"
-
 #include <SDL3/SDL.h>
 
 static int s_reached;

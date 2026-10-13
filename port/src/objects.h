@@ -77,17 +77,12 @@ void obj_add_velocity(int slot, int32_t dvx, int32_t dvy); /* 0x2c0bc */
  * 0 runs it now, -1 cancels timer k. */
 void obj_set_callback(int slot, int k, int cb, int frames);
 void obj_set_anim(int slot, int anim, int frame);           /* 0x2c7d0 */
-/* 0x2c800: play `anim` from the start and run `cb` on timer k when it ends. */
-void obj_play_anim_then(int slot, int anim, int k, int cb);
 void obj_anim_step(int slot);                 /* 0x2cd18 */
 
 void objects_update(void);                    /* 0x2cbbc */
 
 /* First (lowest z) active object, or -1 (0x841ec). */
 int objects_first(void);
-
-/* Iteration state of objects_update(), visible to callbacks (0x59e24/28). */
-int objects_current(void);
 
 /* Testing aid: called at the start of every objects_update() (NULL = off). */
 void objects_set_step_hook(void (*fn)(void));

@@ -43,13 +43,29 @@ static FILE *try_open(const char *dir, const char *name)
     return fopen(path, "rb");
 }
 
+/* A macOS app bundle's base path is .../X.app/Contents/Resources/; the
+ * game files sit next to the bundle, so return its folder (or NULL). */
+static const char *bundle_dir(const char *base)
+{
+    static char out[1024];
+    const char *app = base ? SDL_strstr(base, ".app/Contents/") : NULL;
+    if (!app) return NULL;
+    size_t n = (size_t)(app - base);
+    while (n > 0 && base[n - 1] != '/') n--;
+    if (n == 0 || n >= sizeof out) return NULL;
+    SDL_memcpy(out, base, n);
+    out[n] = 0;
+    return out;
+}
+
 bool pak_open(const char *dir)
 {
     /* Original filename is upper case; try both for case-sensitive filesystems. */
     static const char *names[] = { "DATA.PAK", "data.pak" };
-    const char *dirs[] = { dir, ".", SDL_GetBasePath(), NULL };
-    for (int d = 0; d < 3 && !s_pak; d++) {
-        if (d == 0 && !dir) continue;
+    const char *base = SDL_GetBasePath();
+    const char *dirs[] = { dir, ".", base, bundle_dir(base) };
+    for (int d = 0; d < 4 && !s_pak; d++) {
+        if ((d == 0 || d == 3) && !dirs[d]) continue;
         for (int n = 0; n < 2 && !s_pak; n++)
             s_pak = try_open(dirs[d], names[n]);
         if (s_pak) SDL_snprintf(s_pak_dir, sizeof s_pak_dir, "%s", dirs[d] ? dirs[d] : ".");
